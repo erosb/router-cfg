@@ -125,7 +125,7 @@ describe("router cfg", () => {
         it("if evaluates to true", () => {
             let actual = main(`
             before
-            #if tru
+            #if <tru>
             line 1
             # endif
             after`, `tru=true`)
@@ -138,7 +138,7 @@ describe("router cfg", () => {
         it("if evaluates to true, has unless", () => {
             let actual = main(`
             before
-            #if tru
+            #if <tru>
             line 1
             #unless
             unless-line
@@ -153,7 +153,7 @@ describe("router cfg", () => {
         it("if evaluates to false", () => {
             let actual = main(`
             before
-            #if fls
+            #if <fls>
             line 1
             # endif
             after`, `fls=false`)
@@ -165,7 +165,7 @@ describe("router cfg", () => {
         it("if evaluates to false, has unless", () => {
             let actual = main(`
             before
-            #if fls
+            #if <fls>
             line 1
             #unless
             unless-line
@@ -180,8 +180,8 @@ describe("router cfg", () => {
         it("handles nested ifs", () => {
             let actual = main(`
                 before
-                #if tru
-                # if fls
+                #if <tru>
+                # if <fls>
                     not-printed
                 #unless
                     unless
@@ -210,7 +210,7 @@ describe("router cfg", () => {
         it("runs foreach on list with 1 param", () => {
             let actual = main(`
                 before
-                #foreach param in mylist
+                #foreach <param> in <mylist>
                 repeated-line <param> <var>
                 #endfor
             `,

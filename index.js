@@ -41,7 +41,7 @@ function currentLineIsUnless() {
 }
 
 function processIf(line) {
-    let match = line.trim().match(/^#\s*if\s*([a-zA-Z0-9_]+)\s*$/i)
+    let match = line.trim().match(/^#\s*if\s*<([a-zA-Z0-9_]+)>\s*$/i)
     if (match === null) {
         console.warn("cannot process line ${line}")
         return;
@@ -73,7 +73,7 @@ function processIf(line) {
 }
 
 function processForEach(line) {
-    let match = line.match(/^#\s*foreach\s+([a-zA-Z0-9_,]+)\s+in\s+([a-zA-Z0-9_]+)/i)
+    let match = line.match(/^#\s*foreach\s+<([a-zA-Z0-9_,]+)>\s+in\s+<([a-zA-Z0-9_]+)>/i)
     if (match === null) {
         console.warn("cannot process line ${line}")
         return;
@@ -91,13 +91,14 @@ function processForEach(line) {
         case "list":
             let listItems = iterableSymbol.value;
             let loopBodyStart = ++lineNo;
+            symbolTable[loopVars] = {
+                value: null,
+                type: "scalar"
+            }
             for (let itemIndex in listItems) {
                 lineNo = loopBodyStart
                 let item = listItems[itemIndex]
-                symbolTable[loopVars] = {
-                    value: item,
-                    type: "scalar"
-                }
+                symbolTable[loopVars].value = item
                 do {
                     processCurrentLine();
                     ++lineNo;
