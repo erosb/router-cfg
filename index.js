@@ -32,12 +32,20 @@ function currentLineIsEndIf() {
     return currentLine().match(/^#\s*endif\s*$/i) !== null
 }
 
+function currentLineIsEndFor() {
+    return currentLine().match(/^#\s*endfor\s*$/i) !== null
+}
+
 function currentLineIsUnless() {
     return currentLine().match(/^#\s*unless\s*$/i) !== null
 }
 
 function processIf(line) {
     let match = line.trim().match(/^#\s*if\s*([a-zA-Z0-9_]+)\s*$/i)
+    if (match === null) {
+        console.warn("cannot process line ${line}")
+        return;
+    }
     let varName = match[1]
     if (symbolTable[varName].value) {
         ++lineNo;
@@ -64,15 +72,55 @@ function processIf(line) {
     }
 }
 
+function processForEach(line) {
+    let match = line.match(/^#\s*foreach\s+([a-zA-Z0-9_,]+)\s+in\s+([a-zA-Z0-9_]+)/i)
+    if (match === null) {
+        console.warn("cannot process line ${line}")
+        return;
+    }
+    console.log(match)
+    let loopVars = match[1];
+    let iterableName = match[2];
+    let iterableSymbol = symbolTable[iterableName];
+    if (iterableSymbol === undefined) {
+        throw `cannot iterate on nonexistent variable ${iterableName} on line ${lineNo}`
+    }
+    switch (iterableSymbol.type) {
+        case "scalar":
+            throw `cannot iterate on scalar variable ${iterableName} on line ${lineNo}`
+        case "list":
+            let listItems = iterableSymbol.value;
+            let loopBodyStart = ++lineNo;
+            for (let itemIndex in listItems) {
+                lineNo = loopBodyStart
+                let item = listItems[itemIndex]
+                symbolTable[loopVars] = {
+                    value: item,
+                    type: "scalar"
+                }
+                do {
+                    processCurrentLine();
+                    ++lineNo;
+                } while(!currentLineIsEndFor());
+            }
+            delete symbolTable[loopVars]
+            break;
+        default:
+            throw "unhandled symbol type"
+    }
+}
+
 function processCurrentLine() {
     let line = programLines[lineNo].trim();
+    if (line.trim() === "!") {
+        return;
+    }
     if (line.startsWith("#")) {
-        let command = line.substring(1);
-        while (command[0] === " ") {
-            command = command.substring(1);
-        }
+        let command = line.substring(1).trim();
         if (command.toLowerCase().startsWith("if")) {
             processIf(line)
+        } else if (command.toLowerCase().startsWith("foreach")) {
+            processForEach(line)
         }
     } else {
         output.push(substVars(programLines[lineNo]))
@@ -144,8 +192,23 @@ function parseVariables(rawVars) {
     return retval
 }
 
+function preprocessLines(prog) {
+    let lines = prog.trim().split("\n");
+    let retval = [];
+    for (let i = 0; i < lines.length; ++i){
+        let line = lines[i].trim();
+        let prevLine = retval[retval.length - 1];
+        if (prevLine !== undefined && prevLine.endsWith("\\")) {
+            retval[retval.length - 1] = prevLine.substring(0, prevLine.length -1) + line
+        } else {
+            retval.push(line)
+        }
+    }
+    return retval;
+}
+
 function main(prog, vars) {
-    programLines = prog.trim().split("\n");
+    programLines = preprocessLines(prog)
     symbolTable = parseVariables(vars);
     lineNo = 0;
     output = [];

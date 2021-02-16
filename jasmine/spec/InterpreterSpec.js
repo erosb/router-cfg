@@ -42,6 +42,25 @@ describe("router cfg", () => {
     }
 
     describe("basic echo", () => {
+        it("ignores lines with exclamation marks", () => {
+            let actual = main(`!
+            line
+            !`, ``);
+            expect(actual).toOutput("line");
+        })
+
+        it("joins lines ending with \\", () => {
+            let actual = main(`line 1
+            line 2 part 1 \\
+            line 2 part 2 \\
+            line 2 part 3
+            line 3`, ``)
+
+            expect(actual).toOutput(`line 1
+            line 2 part 1 line 2 part 2 line 2 part 3
+            line 3`);
+        })
+
         it("writes no-operation line", () => {
             let actual = main(`
                 print this
@@ -125,7 +144,6 @@ describe("router cfg", () => {
             unless-line
             # endif
             after`, `tru=true`)
-            console.log(actual)
             expect(actual).toOutput(
                 `before
                 line 1
@@ -153,14 +171,60 @@ describe("router cfg", () => {
             unless-line
             # endif
             after`, `fls=false`)
-            console.log(actual)
             expect(actual).toOutput(
                 `before
                 unless-line
                 after`)
         })
 
+        it("handles nested ifs", () => {
+            let actual = main(`
+                before
+                #if tru
+                # if fls
+                    not-printed
+                #unless
+                    unless
+                #endif
+                #unless
+                    not-printed
+                #endif
+                after
+            
+            `,
+            `tru=true
+            fls=false`);
+            expect(actual).toOutput(`before
+            unless
+            after`)
+        })
+
         it("misses closing endif", () => {
+
+        })
+
+    })
+
+    describe("foreach", () => {
+        
+        it("runs foreach on list with 1 param", () => {
+            let actual = main(`
+                before
+                #foreach param in mylist
+                repeated-line <param> <var>
+                #endfor
+            `,
+            `mylist=a,b,ccc
+            var=12`)
+            expect(actual).toOutput(`
+                before
+                repeated-line a 12
+                repeated-line b 12
+                repeated-line ccc 12
+            `)
+        })
+
+        xit("errors on scalar variable", () => {
 
         })
 
