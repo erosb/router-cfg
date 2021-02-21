@@ -212,7 +212,7 @@ describe("router cfg", () => {
             #foreach <param> in <var>
             repeated-line <param> <var>
             #endfor`,
-            `
+                `
             var=2
             `);
             expect(actual).toOutput(`
@@ -279,7 +279,7 @@ describe("router cfg", () => {
             #endfor
         `, `mylist=k0:a,k1:b,k2:cc`)
 
-        expect(actual).toOutput(`
+            expect(actual).toOutput(`
         before
         repeated-line #k0: a
         repeated-line #k1: b
@@ -288,5 +288,60 @@ describe("router cfg", () => {
         })
 
     })
+
+    describe("define", () => {
+
+        it("define sets value to true", () => {
+            let actual = main(`
+                before
+                #define myvar
+                line <myvar>
+            `, ``)
+            expect(actual).toOutput(`
+            before
+            line true`)
+        })
+
+        it("define sets value to specified value", () => {
+            let actual = main(`
+            #define a=22
+            line <a>`, ``);
+
+            expect(actual).toOutput(`line 22`)
+        })
+
+        xit("prints warning on already defined variable", () => {
+
+        })
+
+        it("ifdef recognizes undefined value as false", () => {
+            let actual = main(`
+            #ifdef myvar
+            line    
+            #endif
+            `, ``)
+            expect(actual).toOutput("")
+        })
+
+        it("ifdef recognizes defined value", () => {
+            let actual = main(`
+            #ifdef myvar
+            line    
+            #endif
+            `, `myvar=true`)
+            expect(actual).toOutput("line")
+        })
+
+        it("define parses 'false' as false", () => {
+            let actual = main(`
+            #define myvar=false
+            #if <myvar>
+            line    
+            #endif
+            `, ``)
+            expect(actual).toOutput("")
+        })
+
+    });
 
 })

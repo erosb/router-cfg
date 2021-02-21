@@ -40,14 +40,8 @@ function currentLineIsUnless() {
     return currentLine().match(/^#\s*unless\s*$/i) !== null
 }
 
-function processIf(line) {
-    let match = line.trim().match(/^#\s*if\s*<([a-zA-Z0-9_]+)>\s*$/i)
-    if (match === null) {
-        console.warn("cannot process line ${line}")
-        return;
-    }
-    let varName = match[1]
-    if (symbolTable[varName].value) {
+function processUntilEndIf(condition) {
+    if (condition) {
         ++lineNo;
         while (!(currentLineIsEndIf() || currentLineIsUnless())) {
             processCurrentLine()
@@ -70,6 +64,16 @@ function processIf(line) {
             };
         }
     }
+}
+
+function processIf(line) {
+    let match = line.trim().match(/^#\s*if\s*<([a-zA-Z0-9_]+)>\s*$/i)
+    if (match === null) {
+        console.warn(`cannot process line ${line}`)
+        return;
+    }
+    let varName = match[1]
+    processUntilEndIf(symbolTable[varName].value)
 }
 
 function processForEach(line) {
@@ -113,6 +117,29 @@ function processForEach(line) {
     delete symbolTable[loopValueVar]
 }
 
+function processDefine(line) {
+    let match = line.match(/^#\s*define\s+([a-z-A-Z0-9_]+)(\s*=\s*(.*))?/i)
+    let varName = match[1]
+    let varValue = match[3]
+    if (varValue === undefined) {
+        varValue = true;
+    } else if (varValue.trim() === "false") {
+        varValue = false
+    } else {
+        varValue = varValue.trim()
+    }
+    symbolTable[varName] = {
+        type: "scalar",
+        value: varValue
+    }
+}
+
+function processIfDef(line) {
+    let match = line.match(/^#\s*ifdef\s+([a-zA-Z0-9_]+)/i)
+    let varName = match[1];
+    processUntilEndIf(symbolTable[varName] != undefined);
+}
+
 function processCurrentLine() {
     let line = programLines[lineNo].trim();
     if (line.trim() === "!") {
@@ -120,10 +147,14 @@ function processCurrentLine() {
     }
     if (line.startsWith("#")) {
         let command = line.substring(1).trim();
-        if (command.toLowerCase().startsWith("if")) {
+        if (command.toLowerCase().startsWith("ifdef")) {
+            processIfDef(line)
+        } else if (command.toLowerCase().startsWith("if")) {
             processIf(line)
         } else if (command.toLowerCase().startsWith("foreach")) {
             processForEach(line)
+        } else if (command.toLowerCase().startsWith("define")) {
+            processDefine(line)
         }
     } else {
         output.push(substVars(programLines[lineNo]))
