@@ -119,7 +119,7 @@ describe("router cfg", () => {
                 lineNo = 0;
                 expect(currentLineIsEndIf()).toBe(true)
             })
-            
+
         })
 
         it("if evaluates to true", () => {
@@ -192,7 +192,7 @@ describe("router cfg", () => {
                 after
             
             `,
-            `tru=true
+                `tru=true
             fls=false`);
             expect(actual).toOutput(`before
             unless
@@ -206,7 +206,21 @@ describe("router cfg", () => {
     })
 
     describe("foreach", () => {
-        
+
+        it("runs foreach on scalar as 1-elem list", () => {
+            let actual = main(`before
+            #foreach <param> in <var>
+            repeated-line <param> <var>
+            #endfor`,
+            `
+            var=2
+            `);
+            expect(actual).toOutput(`
+            before
+            repeated-line 2 2
+            `)
+        })
+
         it("runs foreach on list with 1 param", () => {
             let actual = main(`
                 before
@@ -214,7 +228,7 @@ describe("router cfg", () => {
                 repeated-line <param> <var>
                 #endfor
             `,
-            `mylist=a,b,ccc
+                `mylist=a,b,ccc
             var=12`)
             expect(actual).toOutput(`
                 before
@@ -224,8 +238,53 @@ describe("router cfg", () => {
             `)
         })
 
-        xit("errors on scalar variable", () => {
+        it("runs foreach on list with 2 params", () => {
+            let actual = main(`
+                before
+                #foreach <idx>,<val> in <mylist>
+                repeated-line #<idx>: <val>
+                #endfor
+            `, `mylist=a,b,cc`)
 
+            expect(actual).toOutput(`
+            before
+            repeated-line #0: a
+            repeated-line #1: b
+            repeated-line #2: cc
+            `)
+        })
+
+        it("runs foreach on dictionary with 1 param", () => {
+            let actual = main(`
+            before
+            #foreach <param> in <mydict>
+            repeated-line <param> <var>
+            #endfor
+        `,
+                `mydict=x:a,y:b,z:ccc
+                var=12`)
+            expect(actual).toOutput(`
+            before
+            repeated-line a 12
+            repeated-line b 12
+            repeated-line ccc 12
+        `)
+        })
+
+        it("runs foreach on dictionary with 2 params", () => {
+            let actual = main(`
+            before
+            #foreach <idx>,<val> in <mylist>
+            repeated-line #<idx>: <val>
+            #endfor
+        `, `mylist=k0:a,k1:b,k2:cc`)
+
+        expect(actual).toOutput(`
+        before
+        repeated-line #k0: a
+        repeated-line #k1: b
+        repeated-line #k2: cc
+        `)
         })
 
     })
