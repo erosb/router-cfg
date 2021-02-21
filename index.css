@@ -11,3 +11,8 @@ body {
 .block-3 label {
     display: block
 }
+
+#cnt-warnings {
+    background-color: lightyellow;
+    color: brown
+}

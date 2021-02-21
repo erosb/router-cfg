@@ -2,6 +2,12 @@
 let programLines, symbolTable;
 let lineNo;
 let output;
+let warnings;
+
+function warn(warning) {
+    console.warn(warning)
+    warnings.push(warning)
+}
 
 function substVars(line) {
     var matches = line.matchAll(/<([a-zA-Z0-9_]+)>/g)
@@ -69,17 +75,24 @@ function processUntilEndIf(condition) {
 function processIf(line) {
     let match = line.trim().match(/^#\s*if\s*<([a-zA-Z0-9_]+)>\s*$/i)
     if (match === null) {
-        console.warn(`cannot process line ${line}`)
+        warn(`cannot process line ${line}`)
         return;
     }
     let varName = match[1]
-    processUntilEndIf(symbolTable[varName].value)
+    let condition;
+    if (symbolTable[varName] === undefined) {
+        warn(`undefined variable ${varName} referenced in #if at line ${lineNo}`)
+        condition = false;
+    } else {
+        condition = symbolTable[varName].value
+    }
+    processUntilEndIf(condition)
 }
 
 function processForEach(line) {
     let match = line.match(/^#\s*foreach\s+(<([a-zA-Z0-9_]+)>\s*,\s*)?<([a-zA-Z0-9_]+)>\s+in\s+<([a-zA-Z0-9_]+)>/i)
     if (match === null) {
-        console.warn(`cannot process line ${line}`)
+        warn(`cannot process line ${line}`)
         return;
     }
     let loopKeyVar = match[2], loopValueVar = match[3];
@@ -155,6 +168,8 @@ function processCurrentLine() {
             processForEach(line)
         } else if (command.toLowerCase().startsWith("define")) {
             processDefine(line)
+        } else {
+            warn(`cannot process line ${lineNo}: ${line}`)
         }
     } else {
         output.push(substVars(programLines[lineNo]))
@@ -246,6 +261,7 @@ function main(prog, vars) {
     symbolTable = parseVariables(vars);
     lineNo = 0;
     output = [];
+    warnings = [];
     while (lineNo < programLines.length) {
         processCurrentLine();
         ++lineNo;
@@ -253,21 +269,58 @@ function main(prog, vars) {
     return output.join("\r\n")
 }
 
-if (document.getElementsByName("txt-output").length > 0) {
-    document.addEventListener("DOMContentLoaded", (e) => {
+function mainWithWarnings(prog, vars) {
+    let error;
+    try {
+        let output = main(prog, vars);
+    } catch (err) {
+        console.error(err)
+        error = err;
+    }
+    return {
+        output: output,
+        warnings: warnings,
+        error: error
+    }
+}
 
-        function runMain(e) {
-            if (e.keyCode == 10 && e.ctrlKey) {
-                var output = main(
-                    document.getElementsByName("txt-src")[0].value,
-                    document.getElementsByName("txt-variables")[0].value
-                );
-                document.getElementsByName("txt-output")[0].value = output;
+document.addEventListener("DOMContentLoaded", (e) => {
+    let warningsCnt = null, warningsUl;
+    let runMain = (e) => {
+        if (e.keyCode == 10 && e.ctrlKey) {
+            warningsCnt.style.display = "none"
+            if (warningsUl) {
+                warningsCnt.removeChild(warningsUl)
+            }
+            var result = mainWithWarnings(
+                document.getElementsByName("txt-src")[0].value,
+                document.getElementsByName("txt-variables")[0].value
+            );
+            document.getElementsByName("txt-output")[0].value = result.output;
+console.log(result)
+
+            warningsUl = document.createElement("UL");
+            warningsCnt.appendChild(warningsUl)
+            if (result.error) {
+                warningsCnt.style.display = "block";
+                let errorLi = document.createElement("LI");
+                errorLi.appendChild(document.createTextNode(result.error))
+                errorLi.style.color = "red";
+                warningsUl.appendChild(errorLi)
+            }
+            if (result.warnings.length > 0) {
+                warningsCnt.style.display = "block";
+                result.warnings.map(w => document.createElement("LI").appendChild(document.createTextNode(w)))
+                    .forEach(w => warningsUl.appendChild(w))
             }
         }
+    }
 
+    if (document.getElementsByName("txt-output").length > 0) {
+        warningsCnt = document.getElementById("cnt-warnings");
+        warningsUl = document.querySelector("#cnt-warnings ul");
         document.getElementsByName("txt-src")[0].addEventListener("keypress", runMain);
         document.getElementsByName("txt-variables")[0].addEventListener("keypress", runMain);
+    }
 
-    });
-}
+});
